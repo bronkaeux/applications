@@ -10,13 +10,12 @@ managers = pd.read_excel("dictionary.xlsx", sheet_name="managers")
 units = pd.read_excel("dictionary.xlsx", sheet_name="units")
 unload_addresses = pd.read_excel("dictionary.xlsx", sheet_name="unload_addresses")
 
-appl = input('Введите заявку')
+appl = str(input('Введите заявку'))
 
 # processing of application data
 # extracting dates from application
 date_pattern = r'\b\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?\b'
 dates = re.findall(date_pattern, appl)
-dates = dates[0]
 
 
 def convert_to_full_year(date_str):
@@ -42,7 +41,7 @@ def convert_to_full_year(date_str):
 
 
 # assigning a variable with a date
-convert_date = convert_to_full_year(dates)
+convert_date = convert_to_full_year(dates[0])
 
 
 def find_manager(text, managers_df):
