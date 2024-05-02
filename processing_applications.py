@@ -12,9 +12,10 @@ unload_addresses = pd.read_excel("dictionary.xlsx", sheet_name="unload_addresses
 
 appl = str(input('Введите заявку'))
 
+
 # processing of application data
 # extracting dates from application
-date_pattern = r'\b\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?\b'
+date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
 dates = re.findall(date_pattern, appl)
 
 
@@ -78,8 +79,8 @@ def find_product(text):
     """
     Function for determining the type of product
     """
-    marca_match = re.search(r'(?i)Марка(:)?\s*(цемента)?\s*(.*?)\n', text)
-    marca_value = marca_match.group(3) if marca_match else np.NAN
+    marca_match = re.search(r'(?i)Марка\s*(?::)?\s*(цемента)?\s*(?::)?\s*(.*?)\\n', text)
+    marca_value = marca_match.group(2) if marca_match else np.NAN
 
     return marca_value
 
@@ -92,7 +93,7 @@ def find_product_notice(text):
     """
     Function for determining the notice for the product
     """
-    intermediate_match = re.search(r'(?i)Марка.*?\n(.*?)\n\d', text, re.DOTALL)
+    intermediate_match = re.search(r'(?i)Марка.*?\\n(.*?)\\n\d', text, re.DOTALL)
     intermediate_value = intermediate_match.group(1) if intermediate_match else np.NAN
 
     if re.match(r'^[^0-9.].*', intermediate_value):
@@ -109,7 +110,7 @@ def find_quantity(text):
     """
     Function for determining the product's quantity
     """
-    quantity_match = re.search(r'(?i)кол(\s*-\s*|ичест)?во\s*(:)?\s*(\d+)', text)
+    quantity_match = re.search(r'(?i)кол(\s*-\s*|ичест)?во\s*(?:\D*)(:)?\s*(\d+)', text)
     quantity = int(quantity_match.group(3)) if quantity_match else np.NAN
 
     return quantity
@@ -123,7 +124,7 @@ def find_unit_note(text):
     """
     Function for determining the quantity's unit
     """
-    unit_match = re.search(r'(?i)кол(-|ичест)?во\s*(:)?\s*(\d+)\s*(\D+)\s*', text)
+    unit_match = re.search(r'(?i)кол(-|ичест)?во\s*(?:\D*)(:)?\s*(\d+)\s*(\D+)\s*\\n\d', text)
     unit = unit_match.group(4).strip() if unit_match else np.NAN
 
     return unit
@@ -154,7 +155,7 @@ def find_organization(text):
     """
     Function for determining our organization's name
     """
-    organization_match = re.search(r'(?i)(продажа\s+от:|(продажа)?\s*от\s+(клиента)?\s*(:)?)\s*(.+?)\n', text)
+    organization_match = re.search(r'(?i)(продажа\s+от:|(продажа)?\s*от\s+(клиента)?\s*(:)?)\s*(.+?)\\n', text)
     organization = organization_match.group(5) if organization_match else np.NAN
 
     return organization
@@ -169,7 +170,7 @@ def find_transshipment(text):
     Function for determining the transshipment's point
     """
     transshipment_match = \
-        re.search(r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\n',
+        re.search(r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\\n',
                   text)
     transshipment = transshipment_match.group(6) if transshipment_match else np.NAN
 
@@ -185,7 +186,7 @@ def find_purchaser(text):
     Function for determining the purchaser's name
     """
     purchaser_match = \
-        re.search(r'(?i)\d+\.\s*(Покупатель\s*(груза)?\s*(:)?)\s*(.+?)\n',
+        re.search(r'(?i)\d+\.\s*(Покупатель\s*(груза)?\s*(:)?)\s*(.+?)\\n',
                   text)
     purchaser = purchaser_match.group(4) if purchaser_match else np.NAN
 
@@ -202,7 +203,7 @@ def find_consignee(text):
     """
     consignee_match = \
         consignee_match = re.search(
-        r'(?i)\d+\.\s*(?:Грузополучатель\s*(?::)?|Грузополучатель\s*\(при\s*оформлении\s*ттн\)\s*(?::)?)\s*(.+?)\n',
+        r'(?i)\d+\.\s*(?:Грузополучатель\s*(?::)?|Грузополучатель\s*\(при\s*оформлении\s*ттн\)\s*(?::)?)\s*(.+?)\\n',
         text)
     consignee = consignee_match.group(1).split(':')[-1].strip() if consignee_match else np.NAN
 
@@ -218,7 +219,7 @@ def find_consignee_leg_addr(text):
     Function for determining the legal consignee's address
     """
     find_consignee_leg_addr_match = \
-        re.search(r'(?i)\d+\.\s*(Юр\s*\.)?\s*(Адрес\s*грузополучателя)\s*(\(юрид\))?\s*(:)?\s*(.+?)\n',
+        re.search(r'(?i)\d+\.\s*(Юр\s*\.)?\s*(Адрес\s*грузополучателя)\s*(\(юрид\))?\s*(:)?\s*(.+?)\\n',
                   text)
     find_consignee_leg_addr = find_consignee_leg_addr_match.group(5) if find_consignee_leg_addr_match else np.NAN
 
@@ -233,7 +234,7 @@ def find_phones(text):
     """
     Function for determining the phone numbers
     """
-    phone_numbers = re.findall(r'\+?\d{1,3}[\s-]?\(?\d{3}\)?[\s-]?\d{2,3}[\s-]?\d{2}[\s-]?\d{2}(?=\s|$)', text)
+    phone_numbers = re.findall(r'\+?\d{1,3}[\s-]?\(?\d{3}\)?[\s-]?\d{2,3}[\s-]?\d{2}[\s-]?\d{2}', text)
     phone_numbers = phone_numbers if phone_numbers else np.NAN
 
     return phone_numbers
@@ -266,7 +267,7 @@ def find_time(text):
     """
     Function for determining the unloading time
     """
-    time_match = re.search(r'(?i)(время)?\s*при(ё|е)мк(и|а)(?::)?\s*(.*)', text)
+    time_match = re.search(r'(?i)(время)?\s*при(ё|е)мк(и|а)(?::)?\s*(.*?)\\n', text)
     time = time_match.group(4) if time_match else np.NAN
 
     return time
@@ -280,16 +281,16 @@ def find_note(text):
     """
     Function for determining the note
     """
-    note_match = re.search(r'(?i)(.*)\s*(?::)?\s*(оплата)\s*(?::)?\s*(.*)', text)
-    note = '{} {} {}'.format(note_match.group(1).strip(), note_match.group(2).strip(),
-                             note_match.group(3).strip()) if note_match else np.NAN
-
-    return note
+    if 'оплата' in text:
+        note_match = re.search(r'(?i)(оплата)\s*(?::)?\s*(.*?)\\n', text)
+        note = '{} {}'.format(note_match.group(1).strip(), note_match.group(2).strip() if note_match else np.NAN)
+        return note
+    else:
+        return np.NAN
 
 
 # assigning a variable with the note
 note_found = find_note(appl)
-
 
 # creating new df with a string
 new_row_df = pd.DataFrame({'Менеджер': [manager_found],
@@ -317,4 +318,3 @@ df = pd.concat([df, new_row_df], ignore_index=True)
 # record updated df
 with pd.ExcelWriter("appl_register.xlsx") as writer:
     df.to_excel(writer, sheet_name="data", index=False)
-
