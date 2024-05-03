@@ -10,13 +10,20 @@ managers = pd.read_excel("dictionary.xlsx", sheet_name="managers")
 units = pd.read_excel("dictionary.xlsx", sheet_name="units")
 unload_addresses = pd.read_excel("dictionary.xlsx", sheet_name="unload_addresses")
 
-appl = str(input('Введите заявку'))
+# entering an application
+application = str(input('Введите заявку'))
 
 
 # processing of application data
 # extracting dates from application
-date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
-dates = re.findall(date_pattern, appl)
+def find_date(text):
+    """
+    Function for extracting all dates
+    """
+    date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
+    dates = re.findall(date_pattern, text)
+
+    return dates
 
 
 def convert_to_full_year(date_str):
@@ -41,10 +48,6 @@ def convert_to_full_year(date_str):
     return datetime_obj.strftime('%d.%m.%Y')
 
 
-# assigning a variable with a date
-convert_date = convert_to_full_year(dates[0])
-
-
 def find_manager(text, managers_df):
     """
     Function for getting the manager's name by login from text
@@ -58,10 +61,6 @@ def find_manager(text, managers_df):
     return np.NAN
 
 
-# assigning a variable with the manager's name
-manager_found = find_manager(appl, managers)
-
-
 def delivery_type(text):
     """
     Function for determining the type of delivery
@@ -69,10 +68,6 @@ def delivery_type(text):
     if "самовывоз" in text.lower():
         return "самовывоз"
     return "доставка"
-
-
-# assigning a variable with the delivery's type
-delivery_found = delivery_type(appl)
 
 
 def find_product(text):
@@ -83,10 +78,6 @@ def find_product(text):
     marca_value = marca_match.group(2) if marca_match else np.NAN
 
     return marca_value
-
-
-# assigning a variable with the product's type
-product_found = find_product(appl)
 
 
 def find_product_notice(text):
@@ -102,10 +93,6 @@ def find_product_notice(text):
         return np.NAN
 
 
-# assigning a variable with the product's notice
-product_notice_found = find_product_notice(appl)
-
-
 def find_quantity(text):
     """
     Function for determining the product's quantity
@@ -114,10 +101,6 @@ def find_quantity(text):
     quantity = int(quantity_match.group(3)) if quantity_match else np.NAN
 
     return quantity
-
-
-# assigning a variable with the product's quantity
-quantity_found = find_quantity(appl)
 
 
 def find_unit_note(text):
@@ -130,13 +113,6 @@ def find_unit_note(text):
     return unit
 
 
-# assigning a variable with the quantity's unit
-unit_note_found = find_unit_note(appl)
-
-# finding data in a dictionary
-unit_found = units.loc[units[units['data'] == unit_note_found].index[0], 'unit']
-
-
 def find_car(text):
     """
     Function for determining the car's numbers
@@ -147,10 +123,6 @@ def find_car(text):
     return cars
 
 
-# assigning a variable with car numbers and writing them without list brackets
-cars_found = ', '.join(find_car(appl)) if find_car(appl) is not np.NAN else np.NAN
-
-
 def find_organization(text):
     """
     Function for determining our organization's name
@@ -159,10 +131,6 @@ def find_organization(text):
     organization = organization_match.group(5) if organization_match else np.NAN
 
     return organization
-
-
-# assigning a variable with our organization's name
-organization_found = find_organization(appl)
 
 
 def find_transshipment(text):
@@ -177,10 +145,6 @@ def find_transshipment(text):
     return transshipment
 
 
-# assigning a variable with the transshipment's point
-transshipment_found = find_transshipment(appl)
-
-
 def find_purchaser(text):
     """
     Function for determining the purchaser's name
@@ -191,10 +155,6 @@ def find_purchaser(text):
     purchaser = purchaser_match.group(4) if purchaser_match else np.NAN
 
     return purchaser
-
-
-# assigning a variable with the purchaser's name
-purchaser_found = find_purchaser(appl)
 
 
 def find_consignee(text):
@@ -210,10 +170,6 @@ def find_consignee(text):
     return consignee
 
 
-# assigning a variable with the consignee's name
-consignee_found = find_consignee(appl)
-
-
 def find_consignee_leg_addr(text):
     """
     Function for determining the legal consignee's address
@@ -226,10 +182,6 @@ def find_consignee_leg_addr(text):
     return find_consignee_leg_addr
 
 
-# assigning a variable with legal consignee's address
-consignee_leg_addr_found = find_consignee_leg_addr(appl)
-
-
 def find_phones(text):
     """
     Function for determining the phone numbers
@@ -238,10 +190,6 @@ def find_phones(text):
     phone_numbers = phone_numbers if phone_numbers else np.NAN
 
     return phone_numbers
-
-
-# assigning a variable with phone numbers and writing them without list brackets
-phones_found = ', '.join(find_phones(appl)) if find_phones(appl) is not np.NAN else np.NAN
 
 
 def find_unl_addr(text, unload_addresses_df):
@@ -259,10 +207,6 @@ def find_unl_addr(text, unload_addresses_df):
     return np.NAN
 
 
-# assigning a variable with unload addresses
-unl_addr_found = find_unl_addr(appl, unload_addresses)
-
-
 def find_time(text):
     """
     Function for determining the unloading time
@@ -271,10 +215,6 @@ def find_time(text):
     time = time_match.group(4) if time_match else np.NAN
 
     return time
-
-
-# assigning a variable with unloading time
-accept_time_found = find_time(appl)
 
 
 def find_note(text):
@@ -289,28 +229,77 @@ def find_note(text):
         return np.NAN
 
 
-# assigning a variable with the note
-note_found = find_note(appl)
+def extract_all_data(appl):
+    """
 
-# creating new df with a string
-new_row_df = pd.DataFrame({'Менеджер': [manager_found],
-                           'Вид доставки': [delivery_found],
-                           'Дата': [convert_date],
-                           'Товар': [product_found],
-                           'Примечание к Товару': [product_notice_found],
-                           'Кол-во': [quantity_found],
-                           'Ед.изм.': [unit_found],
-                           'Машина/Водитель': [cars_found],
-                           'Продавец': [organization_found],
-                           'Откуда': [transshipment_found],
-                           'Покупатель': [purchaser_found],
-                           'Грузополучатель': [consignee_found],
-                           'Адрес грузополучателя (юрид)': [consignee_leg_addr_found],
-                           'Адрес пункта разгрузки': [unl_addr_found],
-                           'Контакт гп': [phones_found],
-                           'Время приемки': [accept_time_found],
-                           'Примечание Иное': [note_found],
-                          })
+    """
+    try:
+        # assigning a variable with a dates
+        found_dates = find_date(appl)
+        # assigning a variable with a date
+        convert_date = convert_to_full_year(found_dates[0])
+        # assigning a variable with the manager's name
+        manager_found = find_manager(appl, managers)
+        # assigning a variable with the delivery's type
+        delivery_found = delivery_type(appl)
+        # assigning a variable with the product's type
+        product_found = find_product(appl)
+        # assigning a variable with the product's notice
+        product_notice_found = find_product_notice(appl)
+        # assigning a variable with the product's quantity
+        quantity_found = find_quantity(appl)
+        # assigning a variable with the quantity's unit
+        unit_note_found = find_unit_note(appl)
+        # finding data in a dictionary
+        unit_found = units.loc[units[units['data'] == unit_note_found].index[0], 'unit']
+        # assigning a variable with car numbers and writing them without list brackets
+        cars_found = ', '.join(find_car(appl)) if find_car(appl) is not np.NAN else np.NAN
+        # assigning a variable with our organization's name
+        organization_found = find_organization(appl)
+        # assigning a variable with the transshipment's point
+        transshipment_found = find_transshipment(appl)
+        # assigning a variable with the purchaser's name
+        purchaser_found = find_purchaser(appl)
+        # assigning a variable with the consignee's name
+        consignee_found = find_consignee(appl)
+        # assigning a variable with legal consignee's address
+        consignee_leg_addr_found = find_consignee_leg_addr(appl)
+        # assigning a variable with phone numbers and writing them without list brackets
+        phones_found = ', '.join(find_phones(appl)) if find_phones(appl) is not np.NAN else np.NAN
+        # assigning a variable with unload addresses
+        unl_addr_found = find_unl_addr(appl, unload_addresses)
+        # assigning a variable with unloading time
+        accept_time_found = find_time(appl)
+        # assigning a variable with the note
+        note_found = find_note(appl)
+
+        # creating new df with a string
+        new_row = pd.DataFrame({'Менеджер': [manager_found],
+                               'Вид доставки': [delivery_found],
+                               'Дата': [convert_date],
+                               'Товар': [product_found],
+                               'Примечание к Товару': [product_notice_found],
+                               'Кол-во': [quantity_found],
+                               'Ед.изм.': [unit_found],
+                               'Машина/Водитель': [cars_found],
+                               'Продавец': [organization_found],
+                               'Откуда': [transshipment_found],
+                               'Покупатель': [purchaser_found],
+                               'Грузополучатель': [consignee_found],
+                               'Адрес грузополучателя (юрид)': [consignee_leg_addr_found],
+                               'Адрес пункта разгрузки': [unl_addr_found],
+                               'Контакт гп': [phones_found],
+                               'Время приемки': [accept_time_found],
+                               'Примечание Иное': [note_found],
+                                })
+    except Exception as e:
+        print("Ошибка при извлечении данных:", e)
+        new_row = pd.DataFrame({'Менеджер': [appl]})
+
+    return new_row
+
+
+new_row_df = extract_all_data(application)
 
 # concatenating dfs
 df = pd.concat([df, new_row_df], ignore_index=True)

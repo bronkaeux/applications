@@ -15,8 +15,18 @@ appl = str(input('Введите заявку'))
 
 # processing of application data
 # extracting dates from application
-date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
-dates = re.findall(date_pattern, appl)
+def find_date(text):
+    """
+    Function for extracting all dates
+    """
+    date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
+    dates = re.findall(date_pattern, text)
+
+    return dates
+
+
+# assigning a variable with a dates
+found_dates = find_date(appl)
 
 
 def convert_to_full_year(date_str):
@@ -42,7 +52,7 @@ def convert_to_full_year(date_str):
 
 
 # assigning a variable with a date
-convert_date = convert_to_full_year(dates[0])
+convert_date = convert_to_full_year(found_dates[0])
 
 
 def find_manager(text, managers_df):
