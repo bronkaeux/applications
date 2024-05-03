@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 
 
-# dictionaries downloading
+# loading dictionaries
 df = pd.read_excel("appl_register.xlsx", sheet_name="data")
 managers = pd.read_excel("dictionary.xlsx", sheet_name="managers")
 units = pd.read_excel("dictionary.xlsx", sheet_name="units")
@@ -15,7 +15,7 @@ application = str(input('Введите заявку'))
 
 
 # processing of application data
-# extracting dates from application
+
 def find_date(text):
     """
     Function for extracting all dates
@@ -67,7 +67,10 @@ def delivery_type(text):
     """
     if "самовывоз" in text.lower():
         return "самовывоз"
-    return "доставка"
+    elif "автономка" in text.lower():
+        return "автономка доставка"
+    else:
+        return "доставка"
 
 
 def find_product(text):
@@ -137,9 +140,8 @@ def find_transshipment(text):
     """
     Function for determining the transshipment's point
     """
-    transshipment_match = \
-        re.search(r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\\n',
-                  text)
+    transshipment_match = re.search(
+        r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\\n', text)
     transshipment = transshipment_match.group(6) if transshipment_match else np.NAN
 
     return transshipment
@@ -149,9 +151,7 @@ def find_purchaser(text):
     """
     Function for determining the purchaser's name
     """
-    purchaser_match = \
-        re.search(r'(?i)\d+\.\s*(Покупатель\s*(груза)?\s*(:)?)\s*(.+?)\\n',
-                  text)
+    purchaser_match = re.search(r'(?i)\d+\.\s*(Покупатель\s*(груза)?\s*(:)?)\s*(.+?)\\n', text)
     purchaser = purchaser_match.group(4) if purchaser_match else np.NAN
 
     return purchaser
@@ -161,8 +161,7 @@ def find_consignee(text):
     """
     Function for determining the consignee's name
     """
-    consignee_match = \
-        consignee_match = re.search(
+    consignee_match = re.search(
         r'(?i)\d+\.\s*(?:Грузополучатель\s*(?::)?|Грузополучатель\s*\(при\s*оформлении\s*ттн\)\s*(?::)?)\s*(.+?)\\n',
         text)
     consignee = consignee_match.group(1).split(':')[-1].strip() if consignee_match else np.NAN
@@ -174,10 +173,10 @@ def find_consignee_leg_addr(text):
     """
     Function for determining the legal consignee's address
     """
-    find_consignee_leg_addr_match = \
-        re.search(r'(?i)\d+\.\s*(Юр\s*\.)?\s*(Адрес\s*грузополучателя)\s*(\(юрид\))?\s*(:)?\s*(.+?)\\n',
-                  text)
-    find_consignee_leg_addr = find_consignee_leg_addr_match.group(5) if find_consignee_leg_addr_match else np.NAN
+    find_consignee_leg_addr_match = re.search(
+        r'(?i)\d+\.\s*(юр\w*\s*(?:\.)?\s*адрес\s*грузополучателя|адрес\s*грузополучателя\s*\(юр\w*\s*(?:\.)?\))\s*(?::)?\s*(.+?)\\n',
+        text)
+    find_consignee_leg_addr = find_consignee_leg_addr_match.group(2) if find_consignee_leg_addr_match else np.NAN
 
     return find_consignee_leg_addr
 
@@ -231,45 +230,63 @@ def find_note(text):
 
 def extract_all_data(appl):
     """
-
+    Function to run all functions to eliminate errors in them
     """
     try:
         # assigning a variable with a dates
         found_dates = find_date(appl)
+
         # assigning a variable with a date
         convert_date = convert_to_full_year(found_dates[0])
+
         # assigning a variable with the manager's name
         manager_found = find_manager(appl, managers)
+
         # assigning a variable with the delivery's type
         delivery_found = delivery_type(appl)
+
         # assigning a variable with the product's type
         product_found = find_product(appl)
+
         # assigning a variable with the product's notice
         product_notice_found = find_product_notice(appl)
+
         # assigning a variable with the product's quantity
         quantity_found = find_quantity(appl)
+
         # assigning a variable with the quantity's unit
         unit_note_found = find_unit_note(appl)
+
         # finding data in a dictionary
         unit_found = units.loc[units[units['data'] == unit_note_found].index[0], 'unit']
+
         # assigning a variable with car numbers and writing them without list brackets
         cars_found = ', '.join(find_car(appl)) if find_car(appl) is not np.NAN else np.NAN
+
         # assigning a variable with our organization's name
         organization_found = find_organization(appl)
+
         # assigning a variable with the transshipment's point
         transshipment_found = find_transshipment(appl)
+
         # assigning a variable with the purchaser's name
         purchaser_found = find_purchaser(appl)
+
         # assigning a variable with the consignee's name
         consignee_found = find_consignee(appl)
+
         # assigning a variable with legal consignee's address
         consignee_leg_addr_found = find_consignee_leg_addr(appl)
+
         # assigning a variable with phone numbers and writing them without list brackets
         phones_found = ', '.join(find_phones(appl)) if find_phones(appl) is not np.NAN else np.NAN
+
         # assigning a variable with unload addresses
         unl_addr_found = find_unl_addr(appl, unload_addresses)
+
         # assigning a variable with unloading time
         accept_time_found = find_time(appl)
+
         # assigning a variable with the note
         note_found = find_note(appl)
 
@@ -299,6 +316,7 @@ def extract_all_data(appl):
     return new_row
 
 
+# assigning a variable with the fun
 new_row_df = extract_all_data(application)
 
 # concatenating dfs
