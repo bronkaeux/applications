@@ -1,0 +1,1 @@
+Ошибка в методе find_unit_note: index 0 is out of bounds for axis 0 with size 0
