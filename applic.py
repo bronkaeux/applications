@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import re
 import traceback
+from datetime import datetime
 
 
 class ApplicationProcessor:
@@ -25,6 +26,43 @@ class ApplicationProcessor:
         except Exception as e:
             self.error_log.append(f"Error in the find_manager method: {e}")
             return np.nan
+
+    @staticmethod
+    def find_dates(text):
+        """
+        Method for dates extracting
+        """
+        try:
+            date_pattern = r'\d{2}\.(?:0[1-9]|1[0-2])(?:\.\d{2}(?:\d{2})?)?'
+            dates = re.findall(date_pattern, text)
+            return dates
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_dates method: {e}")
+            return np.nan
+
+
+
+    @staticmethod
+    def convert_to_full_year(date_str):
+        """
+        Method for formatting the date into the specified format
+        """
+        current_year = datetime.now().year
+        parts = date_str.split('.')
+
+        try:
+            if len(parts) == 2:
+                date_str += f".{current_year}"
+
+            datetime_obj = datetime.strptime(date_str, '%d.%m.%Y')
+        except ValueError:
+            try:
+                datetime_obj = datetime.strptime(date_str, '%d.%m.%y')
+            except ValueError:
+                raise ValueError("Неподдерживаемый формат даты")
+
+        return datetime_obj.strftime('%d.%m.%Y')
 
     @staticmethod
     def delivery_type(text):
@@ -127,6 +165,11 @@ class ApplicationProcessor:
         """
         try:
             manager_found = self.find_manager(application)
+            found_dates = ApplicationProcessor.find_dates(application)
+            if found_dates:
+                formatted_date = self.convert_to_full_year(found_dates[0])
+            else:
+                formatted_date = np.nan
             delivery_found = self.delivery_type(application)
             product_found = self.find_product(application)
             product_notice_found = self.find_product_notice(application)
@@ -135,13 +178,14 @@ class ApplicationProcessor:
             purchaser_found = self.find_purchaser(application)
 
             new_row = pd.DataFrame({'Менеджер': [manager_found],
+                                    'Дата': [formatted_date],
                                     'Вид доставки': [delivery_found],
                                     'Товар': [product_found],
                                     'Примечание к Товару': [product_notice_found],
                                     'Кол-во': [quantity_found],
                                     'Ед.изм.': [unit_found],
                                     'Покупатель': [purchaser_found],
-                                    'Текст заявки': [application]})
+                                    'Текст заявки': [application.replace('\\n', ' ')]})
 
             self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
 
