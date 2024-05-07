@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import traceback
 
 
 class ApplicationProcessor:
@@ -8,7 +9,7 @@ class ApplicationProcessor:
         self.managers_df = managers_df
         self.units_df = units_df
         self.df = pd.DataFrame(columns=['Менеджер', 'Вид доставки', 'Кол-во', 'Ед.изм.', 'Покупатель', 'Текст заявки'])
-        self.error_log = []
+        self.error_log = pd.DataFrame(columns=['Ошибка', 'Заявка'])
 
     def find_manager(self, text):
         """
@@ -100,20 +101,22 @@ class ApplicationProcessor:
             self.df = pd.concat([self.df, new_row], ignore_index=True)
 
         except Exception as e:
-            self.error_log.append(f"Ошибка при обработке заявки: {e}")
+            traceback_str = traceback.format_exc()
+            self.error_log = pd.concat([self.error_log, pd.DataFrame({'Ошибка': [traceback_str],
+                                                                      'Заявка': [application]})],
+                                       ignore_index=True)
+
             new_row = pd.DataFrame({'Менеджер': [application]})
             self.df = pd.concat([self.df, new_row], ignore_index=True)
 
     def save_to_excel(self, filename):
         """
-        Method to save the dataframe to Excel
+        Method to save the dataframe and error log to Excel
         """
+
         with pd.ExcelWriter(filename) as writer:
             self.df.to_excel(writer, sheet_name="data", index=False)
-
-        if self.error_log:
-            with open("error_log.txt", "w") as file:
-                file.write("\n".join(self.error_log))
+            self.error_log.to_excel(writer, sheet_name="ошибки", index=False)
 
 
 # loading dictionaries
