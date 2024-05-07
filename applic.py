@@ -5,10 +5,11 @@ import traceback
 
 
 class ApplicationProcessor:
-    def __init__(self, managers_df, units_df):
+    def __init__(self, applications_df, managers_df, units_df, unload_addresses_df):
+        self.applications_df = applications_df
         self.managers_df = managers_df
         self.units_df = units_df
-        self.df = pd.DataFrame(columns=['Менеджер', 'Вид доставки', 'Кол-во', 'Ед.изм.', 'Покупатель', 'Текст заявки'])
+        self.unload_addresses_df = unload_addresses_df
         self.error_log = pd.DataFrame(columns=['Ошибка', 'Заявка'])
 
     def find_manager(self, text):
@@ -22,8 +23,8 @@ class ApplicationProcessor:
                 if login.lower().replace(' ', '') in text.lower().replace(' ', ''):
                     return manager
         except Exception as e:
-            self.error_log.append(f"Ошибка в методе find_manager: {e}")
-        return np.nan
+            self.error_log.append(f"Error in the find_manager method: {e}")
+            return np.nan
 
     @staticmethod
     def delivery_type(text):
@@ -39,6 +40,36 @@ class ApplicationProcessor:
                 return "доставка"
         except Exception as e:
             self.error_log.append(f"Ошибка в методе delivery_type: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_product(text):
+        """
+        Function for determining the type of product
+        """
+        try:
+            marca_match = re.search(r'(?i)Марка(:)?\s*(цемента)?\s*(.*?)\\n', text)
+            marca_value = marca_match.group(3) if marca_match else np.NAN
+            return marca_value
+        except Exception as e:
+            self.error_log.append(f"Error in the find_product method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_product_notice(text):
+        """
+        Function for determining the notice for the product
+        """
+        try:
+            intermediate_match = re.search(r'(?i)Марка.*?\\n(.*?)\\n\d', text, re.DOTALL)
+            intermediate_value = intermediate_match.group(1) if intermediate_match else np.NAN
+
+            if re.match(r'^[^0-9.].*', intermediate_value):
+                return intermediate_value
+            else:
+                return np.nan
+        except Exception as e:
+            self.error_log.append(f"Error in the find_product_notice method: {e}")
             return np.nan
 
     @staticmethod
@@ -61,10 +92,20 @@ class ApplicationProcessor:
         try:
             unit_match = re.search(r'(?i)кол(-|ичест)?во\s*(?:\D*)(:)?\s*(\d+)\s*(\D+)\s*\\n\d', text)
             unit = unit_match.group(4).strip() if unit_match else np.nan
-            unit_found = self.units_df.loc[self.units_df[self.units_df['data'] == unit].index[0], 'unit']
-            return unit_found
+
+            if unit:
+                unit_index = self.units_df[self.units_df['data'] == unit].index
+                if not unit_index.empty:
+                    unit_found = self.units_df.loc[unit_index[0], 'unit']
+                    return unit_found
+
+            return np.nan
+
         except Exception as e:
-            self.error_log.append(f"Ошибка в методе find_unit_note: {e}")
+            self.error_log = pd.concat(
+                [self.error_log, pd.DataFrame({'Ошибка': [f"Ошибка в методе find_unit_note: {e}"],
+                                               'Заявка': [text]})],
+                ignore_index=True)
             return np.nan
 
     @staticmethod
@@ -87,18 +128,22 @@ class ApplicationProcessor:
         try:
             manager_found = self.find_manager(application)
             delivery_found = self.delivery_type(application)
+            product_found = self.find_product(application)
+            product_notice_found = self.find_product_notice(application)
             quantity_found = self.find_quantity(application)
             unit_found = self.find_unit_note(application)
             purchaser_found = self.find_purchaser(application)
 
             new_row = pd.DataFrame({'Менеджер': [manager_found],
                                     'Вид доставки': [delivery_found],
+                                    'Товар': [product_found],
+                                    'Примечание к Товару': [product_notice_found],
                                     'Кол-во': [quantity_found],
                                     'Ед.изм.': [unit_found],
                                     'Покупатель': [purchaser_found],
                                     'Текст заявки': [application]})
 
-            self.df = pd.concat([self.df, new_row], ignore_index=True)
+            self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
 
         except Exception as e:
             traceback_str = traceback.format_exc()
@@ -106,8 +151,8 @@ class ApplicationProcessor:
                                                                       'Заявка': [application]})],
                                        ignore_index=True)
 
-            new_row = pd.DataFrame({'Менеджер': [application]})
-            self.df = pd.concat([self.df, new_row], ignore_index=True)
+            new_row = pd.DataFrame({'Текст заявки': [application]})
+            self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
 
     def save_to_excel(self, filename):
         """
@@ -115,25 +160,25 @@ class ApplicationProcessor:
         """
 
         with pd.ExcelWriter(filename) as writer:
-            self.df.to_excel(writer, sheet_name="data", index=False)
+            self.applications_df.to_excel(writer, sheet_name="data", index=False)
             self.error_log.to_excel(writer, sheet_name="ошибки", index=False)
 
 
 # loading dictionaries
-managers = pd.DataFrame({'login': ['ИГО', 'Юра Менеджер', 'Алексей Мельхер'],
-                         'manager': ['Игорь Хабаров', 'Юрий', 'Алексей Мельхер']})
-
-units = pd.DataFrame({'data': ['т', 'т.', 'тн', 'тонн', 'кубов'],
-                      'unit': ['т', 'т', 'т', 'т', 'куб']})
+filename = "appl_register.xlsx"
+applications = pd.read_excel(filename, sheet_name="data")
+managers = pd.read_excel("dictionary.xlsx", sheet_name="managers")
+units = pd.read_excel("dictionary.xlsx", sheet_name="units")
+unload_addresses = pd.read_excel("dictionary.xlsx", sheet_name="unload_addresses")
 
 # entering an application
 application = str(input('Введите заявку: '))
 
 # Create an instance of ApplicationProcessor
-processor = ApplicationProcessor(managers, units)
+processor = ApplicationProcessor(applications, managers, units, unload_addresses)
 
 # Process the application
 processor.process_application(application)
 
 # Save to Excel
-processor.save_to_excel("reg.xlsx")
+processor.save_to_excel(filename)
