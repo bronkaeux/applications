@@ -23,6 +23,7 @@ class ApplicationProcessor:
                 manager = row['manager']
                 if login.lower().replace(' ', '') in text.lower().replace(' ', ''):
                     return manager
+
         except Exception as e:
             self.error_log.append(f"Error in the find_manager method: {e}")
             return np.nan
@@ -52,9 +53,10 @@ class ApplicationProcessor:
         try:
             if len(parts) == 2:
                 date_str += f".{current_year}"
-
             datetime_obj = datetime.strptime(date_str, '%d.%m.%Y')
+
         except ValueError:
+
             try:
                 datetime_obj = datetime.strptime(date_str, '%d.%m.%y')
             except ValueError:
@@ -74,6 +76,7 @@ class ApplicationProcessor:
                 return "автономка доставка"
             else:
                 return "доставка"
+
         except Exception as e:
             self.error_log.append(f"Error in the delivery_type method: {e}")
             return np.nan
@@ -87,6 +90,7 @@ class ApplicationProcessor:
             marca_match = re.search(r'(?i)Марка(:)?\s*(цемента)?\s*(.*?)\\n', text)
             marca_value = marca_match.group(3) if marca_match else np.NAN
             return marca_value
+
         except Exception as e:
             self.error_log.append(f"Error in the find_product method: {e}")
             return np.nan
@@ -104,6 +108,7 @@ class ApplicationProcessor:
                 return intermediate_value
             else:
                 return np.nan
+
         except Exception as e:
             self.error_log.append(f"Error in the find_product_notice method: {e}")
             return np.nan
@@ -117,6 +122,7 @@ class ApplicationProcessor:
             quantity_match = re.search(r'(?i)кол(\s*-\s*|ичест)?во\s*(?:\D*)(:)?\s*(\d+)', text)
             quantity = int(quantity_match.group(3)) if quantity_match else np.nan
             return quantity
+
         except Exception as e:
             self.error_log.append(f"Error in the find_quantity method: {e}")
             return np.nan
@@ -134,14 +140,12 @@ class ApplicationProcessor:
                 if not unit_index.empty:
                     unit_found = self.units_df.loc[unit_index[0], 'unit']
                     return unit_found
-
             return np.nan
 
         except Exception as e:
             self.error_log = pd.concat(
                 [self.error_log, pd.DataFrame({'Ошибка': [f"Error in the find_unit_note method: {e}"],
-                                               'Заявка': [text]})],
-                ignore_index=True)
+                                               'Заявка': [text]})], ignore_index=True)
             return np.nan
 
     @staticmethod
@@ -152,7 +156,6 @@ class ApplicationProcessor:
         try:
             car_match = re.findall(r'(?i)[А-Я]{1}\d{3}[А-Я]{2}\d{3}\s*\w*', text)
             cars = car_match if car_match else np.NAN
-
             return cars
 
         except Exception as e:
@@ -167,8 +170,8 @@ class ApplicationProcessor:
         try:
             organization_match = re.search(r'(?i)(продажа\s+от:|(продажа)?\s*от\s+(клиента)?\s*(:)?)\s*(.+?)\\n', text)
             organization = organization_match.group(5) if organization_match else np.NAN
-
             return organization
+
         except Exception as e:
             self.error_log.append(f"Error in the find_organization method: {e}")
             return np.nan
@@ -183,8 +186,8 @@ class ApplicationProcessor:
                 re.search(r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\\n',
                           text)
             transshipment = transshipment_match.group(6) if transshipment_match else np.nan
-
             return transshipment
+
         except Exception as e:
             self.error_log.append(f"Error in the find_transshipment method: {e}")
             return np.nan
@@ -198,8 +201,105 @@ class ApplicationProcessor:
             purchaser_match = re.search(r'(?i)\d+\.\s*(Покупатель\s*(груза)?\s*(:)?)\s*(.+?)\\n', text)
             purchaser = purchaser_match.group(4) if purchaser_match else np.nan
             return purchaser
+
         except Exception as e:
-            self.error_log.append(f"Ошибка в методе find_purchaser: {e}")
+            self.error_log.append(f"Error in the find_purchaser method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_consignee(text):
+        """
+        Method for determining the consignee's name
+        """
+        try:
+            consignee_match = re.search(
+            r'(?i)\d+\.\s*(?:Грузопол\w*\s*(?::)?|Грузопол\w*\s*\(при\s*оформ\w*\s*ттн\)\s*(?::)?)\s*(.+?)\\n',
+            text)
+            consignee = consignee_match.group(1).split(':')[-1].strip() if consignee_match else np.NAN
+            return consignee
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_purchaser method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_consignee_leg_addr(text):
+        """
+        Method for determining the legal consignee's address
+        """
+        try:
+            find_consignee_leg_addr_match = re.search(
+            r'(?i)\d+\.\s*(юр\w*\s*(?:\.)?\s*адрес\s*грузополучателя|адрес\s*грузополучателя\s*\(юр\w*\s*(?:\.)?\))\s*(?::)?\s*(.+?)\\n',
+            text)
+            find_consignee_leg_addr = find_consignee_leg_addr_match.group(2) if find_consignee_leg_addr_match else np.NAN
+            return find_consignee_leg_addr
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_consignee_leg_addr method: {e}")
+            return np.nan
+
+    def find_unl_addr(self, text):
+        """
+        Method for determining unload addresses
+        """
+        try:
+            for index, row in self.unload_addresses_df.iterrows():
+                pattern1 = row['pattern1']
+                pattern2 = row['pattern2']
+                address = row['address']
+
+                if pattern1.lower().replace(' ', '') and pattern2.lower().replace(' ', '') \
+                        in text.lower().replace(' ', ''):
+                    return address
+            return np.nan
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_unl_addr method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_phones(text):
+        """
+        Method for determining the phone numbers
+        """
+        try:
+            phone_numbers = re.findall(r'\+?\d{1,3}[\s-]?\(?\d{3}\)?[\s-]?\d{2,3}[\s-]?\d{2}[\s-]?\d{2}', text)
+            phone_numbers = phone_numbers if phone_numbers else np.NAN
+            return phone_numbers
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_phones method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_time(text):
+        """
+        Method for determining the unloading time
+        """
+        try:
+            time_match = re.search(r'(?i)(время)?\s*при(ё|е)мк(и|а)(?::)?\s*(.*?)\s*\\n', text)
+            time = time_match.group(4) if time_match else np.NAN
+            return time
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_time method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_note(text):
+        """
+        Method for determining the note
+        """
+        try:
+            if 'оплата' in text.lower():
+                note_match = re.search(r'(?i)(оплата)\s*(?::)?\s*(.*?)\\n', text)
+                note = '{} {}'.format(note_match.group(1).strip(), note_match.group(2).strip() if note_match else np.nan)
+                return note
+            else:
+                return np.nan
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_note method: {e}")
             return np.nan
 
     def process_application(self, application):
@@ -222,6 +322,12 @@ class ApplicationProcessor:
             organization_found = self.find_organization(application)
             transshipment_found = self.find_transshipment(application)
             purchaser_found = self.find_purchaser(application)
+            consignee_found = self.find_consignee(application)
+            consignee_leg_addr_found = self.find_consignee_leg_addr(application)
+            unl_addr_found = self.find_unl_addr(application)
+            phones_found = ', '.join(self.find_phones(application)) if self.find_phones(application) is not np.nan else np.nan
+            accept_time_found = self.find_time(application)
+            note_found = self.find_note(application)
 
             new_row = pd.DataFrame({'Менеджер': [manager_found],
                                     'Дата': [formatted_date],
@@ -234,6 +340,12 @@ class ApplicationProcessor:
                                     'Продавец': [organization_found],
                                     'Откуда': [transshipment_found],
                                     'Покупатель': [purchaser_found],
+                                    'Грузополучатель': [consignee_found],
+                                    'Юр. адрес грузополучателя': [consignee_leg_addr_found],
+                                    'Адрес пункта разгрузки': [unl_addr_found],
+                                    'Контакт гп': [phones_found],
+                                    'Время приемки': [accept_time_found],
+                                    'Примечание Иное': [note_found],
                                     'Текст заявки': [application.replace('\\n', ' ')]})
 
             self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
