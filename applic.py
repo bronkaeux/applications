@@ -246,8 +246,8 @@ class ApplicationProcessor:
         """
         try:
             for index, row in self.unload_addresses_df.iterrows():
-                pattern1 = row['pattern1']
-                pattern2 = row['pattern2']
+                pattern1 = row['name']
+                pattern2 = row['place']
                 address = row['address']
 
                 if pattern1.lower().replace(' ', '') and pattern2.lower().replace(' ', '') \
@@ -320,8 +320,8 @@ class ApplicationProcessor:
             product_found = self.find_product(application)
             product_notice_found = self.find_product_notice(application)
             quantity_found = self.find_quantity(application)
-            n = round(quantity_found / 35)
             unit_found = self.find_unit_note(application)
+            n = round(quantity_found / 35 if unit_found == 'т' else quantity_found / 40)
             cars_found = ', '.join(self.find_car(application)) if self.find_car(application) is not np.nan else np.nan
             organization_found = self.find_organization(application)
             transshipment_found = self.find_transshipment(application)
@@ -339,7 +339,7 @@ class ApplicationProcessor:
                                     'Вид доставки': [delivery_found],
                                     'Товар': [product_found],
                                     'Примечание к Товару': [product_notice_found],
-                                    'Кол-во': [35],
+                                    'Кол-во': [35 if unit_found == 'т' else 40],
                                     'Ед.изм.': [unit_found],
                                     'Машина/Водитель': [cars_found],
                                     'Продавец': [organization_found],
@@ -355,15 +355,18 @@ class ApplicationProcessor:
 
             new_rows = pd.concat([new_row] * n, ignore_index=True)
             self.applications_df = pd.concat([self.applications_df, new_rows], ignore_index=True)
+            self.applications_df['№ Заявки'] = self.applications_df.index + 1
 
         except Exception as e:
             traceback_str = traceback.format_exc()
             self.error_log = pd.concat([self.error_log, pd.DataFrame({'Ошибка': [traceback_str],
                                                                       'Заявка': [application]})],
                                        ignore_index=True)
+            
 
             new_row = pd.DataFrame({'Текст заявки': [application]})
             self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
+            self.applications_df['№ Заявки'] = self.applications_df.index + 1
 
     def save_to_excel(self, filename):
         """
