@@ -21,8 +21,10 @@ class ApplicationProcessor:
             for index, row in self.managers_df.iterrows():
                 login = row['login']
                 manager = row['manager']
+
                 if login.lower().replace(' ', '') in text.lower().replace(' ', ''):
                     return manager
+            return np.nan
 
         except Exception as e:
             self.error_log.append(f"Error in the find_manager method: {e}")
@@ -307,6 +309,7 @@ class ApplicationProcessor:
         Method to process an application and update the dataframe
         """
         try:
+
             manager_found = self.find_manager(application)
             found_dates = ApplicationProcessor.find_dates(application)
             if found_dates:
@@ -317,6 +320,7 @@ class ApplicationProcessor:
             product_found = self.find_product(application)
             product_notice_found = self.find_product_notice(application)
             quantity_found = self.find_quantity(application)
+            n = round(quantity_found / 35)
             unit_found = self.find_unit_note(application)
             cars_found = ', '.join(self.find_car(application)) if self.find_car(application) is not np.nan else np.nan
             organization_found = self.find_organization(application)
@@ -329,12 +333,13 @@ class ApplicationProcessor:
             accept_time_found = self.find_time(application)
             note_found = self.find_note(application)
 
+
             new_row = pd.DataFrame({'Менеджер': [manager_found],
                                     'Дата': [formatted_date],
                                     'Вид доставки': [delivery_found],
                                     'Товар': [product_found],
                                     'Примечание к Товару': [product_notice_found],
-                                    'Кол-во': [quantity_found],
+                                    'Кол-во': [35],
                                     'Ед.изм.': [unit_found],
                                     'Машина/Водитель': [cars_found],
                                     'Продавец': [organization_found],
@@ -348,7 +353,8 @@ class ApplicationProcessor:
                                     'Примечание Иное': [note_found],
                                     'Текст заявки': [application.replace('\\n', ' ')]})
 
-            self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
+            new_rows = pd.concat([new_row] * n, ignore_index=True)
+            self.applications_df = pd.concat([self.applications_df, new_rows], ignore_index=True)
 
         except Exception as e:
             traceback_str = traceback.format_exc()
