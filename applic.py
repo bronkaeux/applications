@@ -41,8 +41,6 @@ class ApplicationProcessor:
             self.error_log.append(f"Error in the find_dates method: {e}")
             return np.nan
 
-
-
     @staticmethod
     def convert_to_full_year(date_str):
         """
@@ -60,7 +58,7 @@ class ApplicationProcessor:
             try:
                 datetime_obj = datetime.strptime(date_str, '%d.%m.%y')
             except ValueError:
-                raise ValueError("Неподдерживаемый формат даты")
+                raise ValueError("Unsupported date format")
 
         return datetime_obj.strftime('%d.%m.%Y')
 
@@ -77,7 +75,7 @@ class ApplicationProcessor:
             else:
                 return "доставка"
         except Exception as e:
-            self.error_log.append(f"Ошибка в методе delivery_type: {e}")
+            self.error_log.append(f"Error in the delivery_type method: {e}")
             return np.nan
 
     @staticmethod
@@ -120,7 +118,7 @@ class ApplicationProcessor:
             quantity = int(quantity_match.group(3)) if quantity_match else np.nan
             return quantity
         except Exception as e:
-            self.error_log.append(f"Ошибка в методе find_quantity: {e}")
+            self.error_log.append(f"Error in the find_quantity method: {e}")
             return np.nan
 
     def find_unit_note(self, text):
@@ -141,9 +139,54 @@ class ApplicationProcessor:
 
         except Exception as e:
             self.error_log = pd.concat(
-                [self.error_log, pd.DataFrame({'Ошибка': [f"Ошибка в методе find_unit_note: {e}"],
+                [self.error_log, pd.DataFrame({'Ошибка': [f"Error in the find_unit_note method: {e}"],
                                                'Заявка': [text]})],
                 ignore_index=True)
+            return np.nan
+
+    @staticmethod
+    def find_car(text):
+        """
+        Method for determining the car's numbers
+        """
+        try:
+            car_match = re.findall(r'(?i)[А-Я]{1}\d{3}[А-Я]{2}\d{3}\s*\w*', text)
+            cars = car_match if car_match else np.NAN
+
+            return cars
+
+        except Exception as e:
+            self.error_log.append(f"Error in the find_purchaser method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_organization(text):
+        """
+        Method for determining our organization's name
+        """
+        try:
+            organization_match = re.search(r'(?i)(продажа\s+от:|(продажа)?\s*от\s+(клиента)?\s*(:)?)\s*(.+?)\\n', text)
+            organization = organization_match.group(5) if organization_match else np.NAN
+
+            return organization
+        except Exception as e:
+            self.error_log.append(f"Error in the find_organization method: {e}")
+            return np.nan
+
+    @staticmethod
+    def find_transshipment(text):
+        """
+        Method for determining the transshipment's point
+        """
+        try:
+            transshipment_match = \
+                re.search(r'(?i)\d+\.\s*(С\s+(перевалки)?\s*|Завод\s*(отгрузки)?\s*(:)?|Перевалка\s*(:)?)\s*(.+?)\\n',
+                          text)
+            transshipment = transshipment_match.group(6) if transshipment_match else np.nan
+
+            return transshipment
+        except Exception as e:
+            self.error_log.append(f"Error in the find_transshipment method: {e}")
             return np.nan
 
     @staticmethod
@@ -175,6 +218,9 @@ class ApplicationProcessor:
             product_notice_found = self.find_product_notice(application)
             quantity_found = self.find_quantity(application)
             unit_found = self.find_unit_note(application)
+            cars_found = ', '.join(self.find_car(application)) if self.find_car(application) is not np.nan else np.nan
+            organization_found = self.find_organization(application)
+            transshipment_found = self.find_transshipment(application)
             purchaser_found = self.find_purchaser(application)
 
             new_row = pd.DataFrame({'Менеджер': [manager_found],
@@ -184,6 +230,9 @@ class ApplicationProcessor:
                                     'Примечание к Товару': [product_notice_found],
                                     'Кол-во': [quantity_found],
                                     'Ед.изм.': [unit_found],
+                                    'Машина/Водитель': [cars_found],
+                                    'Продавец': [organization_found],
+                                    'Откуда': [transshipment_found],
                                     'Покупатель': [purchaser_found],
                                     'Текст заявки': [application.replace('\\n', ' ')]})
 
