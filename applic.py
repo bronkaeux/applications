@@ -309,7 +309,6 @@ class ApplicationProcessor:
         Method to process an application and update the dataframe
         """
         try:
-
             manager_found = self.find_manager(application)
             found_dates = ApplicationProcessor.find_dates(application)
             if found_dates:
@@ -321,7 +320,7 @@ class ApplicationProcessor:
             product_notice_found = self.find_product_notice(application)
             quantity_found = self.find_quantity(application)
             unit_found = self.find_unit_note(application)
-            n = round(quantity_found / 35 if unit_found == 'т' else quantity_found / 40)
+            num_str = round(quantity_found / 35 if unit_found == 'т' else quantity_found / 40)
             cars_found = ', '.join(self.find_car(application)) if self.find_car(application) is not np.nan else np.nan
             organization_found = self.find_organization(application)
             transshipment_found = self.find_transshipment(application)
@@ -353,7 +352,7 @@ class ApplicationProcessor:
                                     'Примечание Иное': [note_found],
                                     'Текст заявки': [application.replace('\\n', ' ')]})
 
-            new_rows = pd.concat([new_row] * n, ignore_index=True)
+            new_rows = pd.concat([new_row] * num_str, ignore_index=True)
             self.applications_df = pd.concat([self.applications_df, new_rows], ignore_index=True)
             self.applications_df['№ Заявки'] = self.applications_df.index + 1
 
@@ -362,7 +361,6 @@ class ApplicationProcessor:
             self.error_log = pd.concat([self.error_log, pd.DataFrame({'Ошибка': [traceback_str],
                                                                       'Заявка': [application]})],
                                        ignore_index=True)
-            
 
             new_row = pd.DataFrame({'Текст заявки': [application]})
             self.applications_df = pd.concat([self.applications_df, new_row], ignore_index=True)
