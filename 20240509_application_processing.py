@@ -14,8 +14,10 @@ def handle_errors(func):
             return func(*args, **kwargs)
         except Exception as e:
             error_message = f"Error in {func.__name__ if hasattr(func, '__name__') else 'unknown method'}: {e}"
-            args[0].error_log = args[0].error_log.append({'Ошибка': error_message, 'Заявка': args[1]}, ignore_index=True)
+            args[0].error_log = args[0].error_log.append({'Ошибка': error_message, 'Заявка': args[1]},
+                                                         ignore_index=True)
             return np.nan
+
     return wrapper
 
 
@@ -58,9 +60,13 @@ class ApplicationProcessor:
         """
         current_year = datetime.now().year
         parts = date_str.split('.')
+
         if len(parts) == 2:
             date_str += f".{current_year}"
+        else:
+            date_str = parts[0] + '.' + parts[1] + f".{current_year}"
         datetime_obj = datetime.strptime(date_str, '%d.%m.%Y')
+
         return datetime_obj.strftime('%d.%m.%Y')
 
     @staticmethod
@@ -174,8 +180,8 @@ class ApplicationProcessor:
         Method for determining the consignee's name
         """
         consignee_match = re.search(
-        r'(?i)\d+\.\s*(?:Грузопол\w*\s*(?::)?|Грузопол\w*\s*\(при\s*оформ\w*\s*ттн\)\s*(?::)?)\s*(.+?)\\n',
-        text)
+            r'(?i)\d+\.\s*(?:Грузопол\w*\s*(?::)?|Грузопол\w*\s*\(при\s*оформ\w*\s*ттн\)\s*(?::)?)\s*(.+?)\\n',
+            text)
         consignee = consignee_match.group(1).split(':')[-1].strip() if consignee_match else np.nan
         return consignee
 
@@ -186,8 +192,8 @@ class ApplicationProcessor:
         Method for determining the legal consignee's address
         """
         find_consignee_leg_addr_match = re.search(
-        r'(?i)\d+\.\s*(юр\w*\s*(?:\.)?\s*адрес\s*грузополучателя|адрес\s*грузополучателя\s*\(юр\w*\s*(?:\.)?\))\s*(?::)?\s*(.+?)\\n',
-        text)
+            r'(?i)\d+\.\s*(юр\w*\s*(?:\.)?\s*адрес\s*грузополучателя|адрес\s*грузополучателя\s*\(юр\w*\s*(?:\.)?\))\s*(?::)?\s*(.+?)\\n',
+            text)
         find_consignee_leg_addr = find_consignee_leg_addr_match.group(2) if find_consignee_leg_addr_match else np.nan
         return find_consignee_leg_addr
 
