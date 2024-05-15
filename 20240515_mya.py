@@ -21,26 +21,43 @@ def handle_errors(func):
     return wrapper
 
 
-class ApplicationProcessor:
-    def __init__(self, applications_df, managers_df, units_df, unload_addresses_df):
-        self.applications_df = applications_df
-        self.managers_df = managers_df
-        self.units_df = units_df
-        self.unload_addresses_df = unload_addresses_df
+class ReportProcessor:
+    def __init__(self, account_statement_df, agents_df, patterns_list):
+        self.account_statement_df = account_statement_df
+        self.agents_df = agents_df
+        self.patterns_list = patterns_list
         self.error_log = pd.DataFrame(columns=['Ошибка', 'Заявка'])
 
     @handle_errors
-    def find_manager(self, text):
+    def extract_text(self, row):
         """
         Method for getting the manager's name by login from text
         """
-        for index, row in self.managers_df.iterrows():
-            login = row['login']
-            manager = row['manager']
+        matches = []
 
-            if login.replace(' ', '') in text.replace(' ', ''):
-                return manager
-        return np.nan
+        for pattern in patterns:
+            match = re.findall(pattern, row)
+            matches.append(match)
+
+        return '{}, {}, {}'.format(matches[5][0][2], matches[5][0][1], matches[5][0][0]) if matches[5] else \
+                '{} {}.'.format(matches[1][0][0].capitalize(), matches[1][0][1]) if matches[1] else \
+                '{}, {}'.format(matches[0][0][1], matches[0][0][0]) if matches[0] else \
+                '{} {}.{}., {}{}'.format(matches[2][0][2].capitalize(), matches[2][0][3], matches[2][0][4],
+                                             matches[2][0][0], matches[2][0][1]) if matches[2] else \
+                '{} {}.{}., {}'.format(matches[3][0][0].capitalize(), matches[3][0][1], matches[3][0][2],
+                                               matches[3][0][3]) if matches[3] else \
+                '{}{}{}'.format(matches[6][0][0].upper(), matches[6][0][1].upper(),
+                                            matches[6][0][2]).upper() if \
+                                matches[6] else \
+                '{} {}.{}.'.format(matches[4][0][0].capitalize(), matches[4][0][1],
+                                                   matches[4][0][2]) if \
+                                    matches[4] else \
+                '{}, {}'.format([mat[1] for mat in matches[7] if mat[1]][0],
+                                                    ''.join(map(str, [mat[0] for mat in matches[7] if
+                                                                      mat[0]]))) if '"' in row else \
+                '{}'.format(matches[8][0]) if matches[8] else \
+                                            row
+
 
     @staticmethod
     @handle_errors
@@ -316,22 +333,61 @@ class ApplicationProcessor:
         """
 
         with pd.ExcelWriter(filename) as writer:
-            self.applications_df.to_excel(writer, sheet_name="data", index=False)
+            self.df.to_excel(writer, sheet_name="data", index=False)
             self.error_log.to_excel(writer, sheet_name="ошибки", index=False)
 
 
-# loading dictionaries
-filename = "appl_register.xlsx"
-applications = pd.read_excel(filename, sheet_name="data")
-managers = pd.read_excel("dictionary.xlsx", sheet_name="managers")
-units = pd.read_excel("dictionary.xlsx", sheet_name="units")
-unload_addresses = pd.read_excel("dictionary.xlsx", sheet_name="unload_addresses")
+# loading data
+filename = "a022.xlsx"
+file_name = "a_022.xlsx"
+order_period = 4
+year = 2024
+organization = "Арди-а"
+months_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                'November', 'December']
+list_of_months = months_order[order_period - 1:order_period]  # months_order
+sheet_name = "Выписка по счёту"
+account_statement = pd.read_excel(filename, sheet_name=sheet_name, header=10, usecols="A, C:F, K")
+account_statement = account_statement[1:]
+account_statement.columns = ['Date', 'Exp', 'Inc', 'Full_Name', 'INN', 'Purpose']
 
-# entering an application
-application = str(input('Введите заявку: '))
+agents = pd.read_csv("agents.csv")
+
+patterns = [
+    # ПАО ГТС => ГТС, ПАО
+    r'^(?i)(П?АО|ООО|ГУП)(?:\s+|\s*")([^"]+)"?',
+
+    # ПАО Р-БАНК//ИЗМАЙЛОВ ВАЛЕРИЙ МИХАЙЛОВИЧ//РОССИЯ,МОСКВА Г Р/С в ПАО Р-БАНК г Москва => Измайлов В.
+    r'//([\w-]+)\s+(\w)\w*\s+(?:\w)\w*//',
+
+    # Индивидуальный ПРЕДПРИНИМАТЕЛЬ Логинов Андрей Николаевич => Логинов А., ИП
+    r'^(?i)(и)(?:ндивидуальный)?\s*(п)(?:редприниматель)?\s*(\w+)\s+(\w)\w*\s*(\w)?\w*',
+
+    # Никишкина Лидия Алексеевна (ИП) => Нокошина Л., ИП
+    r'^([\w-]+)\s+(\w)\w*\s*(\w)?\w*\s*\((ИП)\)$',
+
+    # ВОРОНОВ ИЛЬЯ АНДРЕЕВИЧ => Воронов И.
+    r'([\w-]+)\s+(\w)\w*\s+(\w)\w*$',
+
+    # ООО "ЧОП "ОХРАННЫЕ СИСТЕМЫ" => ОХРАННЫЕ СИСТЕМЫ, ЧОП, ООО
+    r'^([\w-]{2,3})\s+"?(.*)\s+"(.*)"',
+
+    #  contains "ФНС":
+    r'\w*\s*(?i)(?:и?)\s*(ф)(?:едеральной)?\s*(н)(?:алоговой)?\s*(с)(?:лужбы)?\s*(?:россии)?\s*\w*\s*',
+
+    # ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ЛАГ1" => ЛАГ1, ООО
+    r'(\w)\w{3,}|\"([^\"]+)\"',
+
+    # Межрегиональное операционное УФК (КАЗНАЧЕЙСТВО РОССИИ) => Межрегиональное операционное УФК
+    r'^.+?(?=\s*\()',
+]
+
+
+
+
 
 # Create an instance of ApplicationProcessor
-processor = ApplicationProcessor(applications, managers, units, unload_addresses)
+processor = ReportProcessor(account_statement, agents)
 
 # Process the application
 processor.process_application(application)
